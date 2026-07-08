@@ -1,0 +1,9 @@
+## Interface: 11508
+## Title: Ultra Hardcore Pro Max
+## Notes: An addon for WoW Hardcore OTS leveling vibes.
+## Author: HoliestWoW
+## Version: 1.0.0
+## SavedVariables: UHCPM_Config
+
+# Addon Core
+UHCPM.lua
