@@ -111,7 +111,11 @@ function UHCPM.EnforceCameraAndPurgeUI()
 	local hideArt = (UHCPM_Config and UHCPM_Config.hideActionBarArt)
     if hideArt == nil then hideArt = true end
     UHCPM.UpdateActionBarArt(hideArt)
-    GameTooltip:HookScript("OnShow", function(s) local _, i = s:GetItem(); local _, sp = s:GetSpell(); if not i and not sp then s:Hide() end end)
+    GameTooltip:HookScript("OnShow", function(s) 
+        if TaxiFrame and TaxiFrame:IsShown() then return end
+        local _, i = s:GetItem(); local _, sp = s:GetSpell()
+        if not i and not sp then s:Hide() end 
+    end)
     BuffFrame:Show()
 end
 

@@ -181,12 +181,6 @@ EventFrame:SetScript("OnEvent", function(self, event)
             UHCPM.OriginalState.cvars[cvar] = GetCVar(cvar)
         end
 
-        if ChatFrame1 then
-            local p, rt, rp, x, y = ChatFrame1:GetPoint()
-            local w, h = ChatFrame1:GetSize()
-            UHCPM.OriginalState.chatPoints = {p, rt, rp, x, y, w, h}
-        end
-
         UHCPM_Config = UHCPM_Config or {}
         for k, v in pairs(defaults) do if UHCPM_Config[k] == nil then UHCPM_Config[k] = v end end
         
@@ -208,13 +202,6 @@ EventFrame:SetScript("OnEvent", function(self, event)
         
         if UHCPM.UpdateActionBarArt then UHCPM.UpdateActionBarArt(UHCPM_Config.hideActionBarArt) end
         
-        if not UHCPM_Config.hideChat and ChatFrame1 then
-            local w, h = ChatFrame1:GetSize()
-            ChatFrame1:ClearAllPoints()
-            ChatFrame1:SetSize(w, h)
-            ChatFrame1:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 32, -62.5)
-        end
-        
         if not UHCPM_Config.hasCalibrated then
             C_Timer.After(1.0, function()
                 if UHCPM_Calibration then UHCPM_Calibration:Show() end
@@ -229,11 +216,6 @@ EventFrame:SetScript("OnEvent", function(self, event)
         UHCPM.isLoggingOut = true
         for cvar, val in pairs(UHCPM.OriginalState.cvars) do
             if val ~= nil then SetCVar(cvar, val) end
-        end
-        if ChatFrame1 and UHCPM.OriginalState.chatPoints[1] then
-            ChatFrame1:ClearAllPoints()
-            ChatFrame1:SetSize(UHCPM.OriginalState.chatPoints[6], UHCPM.OriginalState.chatPoints[7])
-            ChatFrame1:SetPoint(unpack(UHCPM.OriginalState.chatPoints, 1, 5))
         end
     end
 end)
