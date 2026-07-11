@@ -61,6 +61,42 @@ local function KillProtectedFrame(frame)
     if frame and type(frame) == "table" and frame.Hide then frame:UnregisterAllEvents(); frame:Hide(); frame:ClearAllPoints(); frame:SetPoint("TOPLEFT", UIParent, "BOTTOMRIGHT", 10000, -10000) end
 end
 
+function UHCPM.UpdateActionBarArt(isHidden)
+    local targetAlpha = isHidden and 0 or 1
+    
+    -- These textures are dynamically sized by the WoW client. 
+    -- Forcing them to :Show() or :Hide() breaks their layout. We only touch their alpha.
+    local dynamicTextures = {StanceBarLeft, StanceBarMiddle, StanceBarRight, SlidingActionBarTexture0, SlidingActionBarTexture1}
+    for _, tex in ipairs(dynamicTextures) do
+        if tex then 
+            tex:SetAlpha(targetAlpha) 
+        end
+    end
+
+    local staticArt = {MainMenuBarLeftEndCap, MainMenuBarRightEndCap, MainMenuBarTexture0, MainMenuBarTexture1, MainMenuBarTexture2, MainMenuBarTexture3, MainMenuMaxLevelBar0, MainMenuMaxLevelBar1, MainMenuMaxLevelBar2, MainMenuMaxLevelBar3, ActionBarUpButton, ActionBarDownButton}
+    for _, art in ipairs(staticArt) do
+        if art then
+            art:SetAlpha(targetAlpha)
+            if isHidden then art:Hide() else art:Show() end
+        end
+    end
+
+    if MainMenuBarPerformanceBarFrame then
+        if isHidden then MainMenuBarPerformanceBarFrame:Hide() else MainMenuBarPerformanceBarFrame:Show() end
+        if not MainMenuBarPerformanceBarFrame.UHCPMHooked then
+            MainMenuBarPerformanceBarFrame:HookScript("OnShow", function(s)
+                if UHCPM_Config and UHCPM_Config.hideActionBarArt then s:Hide() end
+            end)
+            MainMenuBarPerformanceBarFrame.UHCPMHooked = true
+        end
+    end
+
+    if MainMenuBarArtFrame and MainMenuBarArtFrame.PageNumber then
+        MainMenuBarArtFrame.PageNumber:SetAlpha(targetAlpha)
+        if isHidden then MainMenuBarArtFrame.PageNumber:Hide() else MainMenuBarArtFrame.PageNumber:Show() end
+    end
+end
+
 function UHCPM.EnforceCameraAndPurgeUI()
     UIParent:UnregisterEvent("EXPERIMENTAL_CVAR_CONFIRMATION_NEEDED")
     if not InCombatLockdown() then for _, f in ipairs({TargetFrame, PartyMemberFrame1, CompactRaidFrameManager, PlayerFrame, ComboFrame}) do KillProtectedFrame(f) end end
@@ -69,12 +105,12 @@ function UHCPM.EnforceCameraAndPurgeUI()
     for _, f in ipairs({MinimapCluster, Minimap}) do if f and f.Hide and not f.UHCPMHooked then f:Hide(); f:SetAlpha(0); f:EnableMouse(false); f:HookScript("OnShow", function(s) s:Hide() end); f.UHCPMHooked = true end end
     
     BuffFrame:ClearAllPoints(); BuffFrame:SetPoint("TOPRIGHT", UIParent, "TOPRIGHT", -20, -20); hooksecurefunc("BuffFrame_Update", function() for i=1, BUFF_MAX_DISPLAY do local b = _G["BuffButton"..i.."Border"]; if b then b:Hide() end end end)
-    for _, art in ipairs({MainMenuBarLeftEndCap, MainMenuBarRightEndCap, MainMenuBarTexture0, MainMenuBarTexture1, MainMenuBarTexture2, MainMenuBarTexture3, MainMenuMaxLevelBar0, MainMenuMaxLevelBar1, MainMenuMaxLevelBar2, MainMenuMaxLevelBar3, ActionBarUpButton, ActionBarDownButton, SlidingActionBarTexture0, SlidingActionBarTexture1, StanceBarLeft, StanceBarMiddle, StanceBarRight}) do if art then art:Hide(); art:SetAlpha(0) end end
-    if MainMenuBarPerformanceBarFrame then MainMenuBarPerformanceBarFrame:Hide(); MainMenuBarPerformanceBarFrame:SetScript("OnShow", function(s) s:Hide() end) end
     for _, bar in ipairs({"ActionButton", "MultiBarBottomLeftButton", "MultiBarBottomRightButton", "MultiBarLeftButton", "MultiBarRightButton"}) do
         for i=1, 12 do local m = _G[bar..i.."Name"]; if m then m:SetAlpha(0) end; local c = _G[bar..i.."Cooldown"]; if c then c:SetDrawBling(false); c:SetDrawEdge(false) end end
     end
-    if MainMenuBarArtFrame then if MainMenuBarArtFrame.PageNumber then MainMenuBarArtFrame.PageNumber:Hide(); MainMenuBarArtFrame.PageNumber:SetAlpha(0) end; for i=1, MainMenuBarArtFrame:GetNumRegions() do local r = select(i, MainMenuBarArtFrame:GetRegions()); if r and r:GetObjectType() == "Texture" then r:SetTexture(nil) end end end
+	local hideArt = (UHCPM_Config and UHCPM_Config.hideActionBarArt)
+    if hideArt == nil then hideArt = true end
+    UHCPM.UpdateActionBarArt(hideArt)
     GameTooltip:HookScript("OnShow", function(s) local _, i = s:GetItem(); local _, sp = s:GetSpell(); if not i and not sp then s:Hide() end end)
     BuffFrame:Show()
 end
@@ -87,6 +123,19 @@ if IsResting() then restingFrame:Show() end
 local CVarProtector = CreateFrame("Frame"); CVarProtector:RegisterEvent("PLAYER_ENTERING_WORLD"); CVarProtector:RegisterEvent("CVAR_UPDATE")
 local updateTimer = 0; CVarProtector:SetScript("OnUpdate", function(self, elapsed) if updateTimer > 0 then updateTimer = updateTimer - elapsed; if updateTimer <= 0 then CVarProtector:SetScript("OnUpdate", nil) end end end)
 CVarProtector:SetScript("OnEvent", function(self, event, cvarName)
-    local protectedCVars = { ["nameplateShowEnemies"] = "0", ["nameplateShowFriends"] = "0", ["nameplateShowAll"] = "0", ["test_cameraActionCamMode"] = "basic", ["test_cameraOverShoulder"] = "1.2", ["test_cameraTargetFocusEnemyEnable"] = "1", ["CameraKeepCharacterCentered"] = "0", ["CameraReduceUnexpectedMovement"] = "0", ["cameraSmoothStyle"] = "2", ["cameraYawMoveSpeed"] = "0", ["test_cameraTargetFocusInteractEnable"] = "1", ["test_cameraTargetFocusEnemyStrengthYaw"] = "1.0", ["test_cameraTargetFocusEnemyStrengthPitch"] = "0.75", ["cameraZoomSpeed"] = "0", ["cameraDistanceMaxZoomFactor"] = "1", ["nameplateMaxDistance"] = "5", ["enableFloatingCombatText"] = "0", ["CombatDamage"] = "0", ["CombatHealing"] = "0" }
+    local pitchAndHeadBob = (UHCPM_Config and UHCPM_Config.reduceCameraMotion) and "0" or "1"
+    
+    local protectedCVars = { 
+        ["nameplateShowEnemies"] = "0", ["nameplateShowFriends"] = "0", ["nameplateShowAll"] = "0", 
+        ["test_cameraDynamicPitch"] = pitchAndHeadBob, 
+        ["test_cameraHeadMovementStrength"] = pitchAndHeadBob, 
+        ["test_cameraOverShoulder"] = "1.2", ["test_cameraTargetFocusEnemyEnable"] = "1", 
+        ["CameraKeepCharacterCentered"] = "0", ["CameraReduceUnexpectedMovement"] = "0", 
+        ["cameraSmoothStyle"] = "2", ["cameraYawMoveSpeed"] = "0", ["test_cameraTargetFocusInteractEnable"] = "1", 
+        ["test_cameraTargetFocusEnemyStrengthYaw"] = "1.0", ["test_cameraTargetFocusEnemyStrengthPitch"] = "0.75", 
+        ["cameraZoomSpeed"] = "0", ["cameraDistanceMaxZoomFactor"] = "1", ["nameplateMaxDistance"] = "5", 
+        ["enableFloatingCombatText"] = "0", ["CombatDamage"] = "0", ["CombatHealing"] = "0" 
+    }
+    
     if event == "PLAYER_ENTERING_WORLD" then for cvar, val in pairs(protectedCVars) do SetCVar(cvar, val) end elseif event == "CVAR_UPDATE" and updateTimer <= 0 then local expected = protectedCVars[cvarName]; if expected and GetCVar(cvarName) ~= expected then SetCVar(cvarName, expected); updateTimer = 0.1 end end
 end)

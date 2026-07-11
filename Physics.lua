@@ -43,8 +43,9 @@ UHCPM.coreFrame:SetScript("OnUpdate", function(self, elapsed)
 
     local ambientDarkness = 0
     if state.isIndoors and state.entranceX then
+        local maxDarkness = (UHCPM_Config and UHCPM_Config.darknessAlpha) or 0.95
         local px, py = UnitPosition("player"); local distSq = ((px - state.entranceX) ^ 2) + ((py - state.entranceY) ^ 2); 
-        ambientDarkness = math.min(math.max(0, math.sqrt(distSq) - 2.0) * 0.15, 0.95) 
+        ambientDarkness = math.min(math.max(0, math.sqrt(distSq) - 2.0) * 0.15, maxDarkness)
     end
 
     local targetAlpha = UnitIsDeadOrGhost("player") and 0 or ambientDarkness
