@@ -34,6 +34,13 @@ function UHCPM.UpdateActionBars(isPreparing)
                 btn:EnableMouse(showBars) 
                 local hk = _G[prefix..i.."HotKey"]
                 if hk then hk:SetAlpha(showBars and 1 or 0) end
+                
+                local cd = _G[prefix..i.."Cooldown"]
+                if cd then
+                    cd:SetAlpha(showBars and 1 or 0)
+                    cd:SetDrawBling(showBars)
+                    cd:SetDrawEdge(showBars)
+                end
             end 
         end 
     end
