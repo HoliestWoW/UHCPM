@@ -33,11 +33,26 @@ CombatTracker:SetScript("OnEvent", function(self, event, unit)
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         local _, subEvent, _, sourceGUID, _, _, _, destGUID, _, _, _, _, arg13, arg14, _, _, _, arg18, _, arg20, arg21, _, arg23 = CombatLogGetCurrentEventInfo()
         
-        if sourceGUID == playerGUID then
-            if subEvent == "SPELL_CAST_START" then
-                if type(arg14) == "number" then UHCPM.state.currentCastSchool = arg14; UHCPM.state.isCastingMagic = (bit.band(arg14, UHCPM.constants.LIGHT_SCHOOLS) ~= 0) end
+        -- FIXED: Un-nested SPELL_CAST_START to trigger for everyone globally
+        if subEvent == "SPELL_CAST_START" then
+            if sourceGUID == playerGUID then
+                if type(arg14) == "number" then 
+                    UHCPM.state.currentCastSchool = arg14; 
+                    UHCPM.state.isCastingMagic = (bit.band(arg14, UHCPM.constants.LIGHT_SCHOOLS) ~= 0) 
+                end
+            else
+                -- Process for strangers, party members, and enemies
+                if type(arg14) == "number" and (bit.band(arg14, UHCPM.constants.LIGHT_SCHOOLS) ~= 0) then
+                    local casterUnit = GetUnitIDFromGUID(sourceGUID)
+                    -- Removed 'if casterUnit then' so strangers fall through to the 0.2 default multiplier
+                    local intensity = GetDistanceMultiplier(casterUnit)
+                    if intensity > UHCPM.state.lightPulse then
+                        UHCPM.state.lightPulse = intensity
+                    end
+                end
             end
         end
+        
         if destGUID == playerGUID then
             if subEvent == "SPELL_PERIODIC_DAMAGE" then if not activeToxins[arg13] then activeToxins[arg13] = true; UpdateToxinState() end
             elseif subEvent == "SPELL_AURA_REMOVED" then if activeToxins[arg13] then activeToxins[arg13] = nil; UpdateToxinState() end end

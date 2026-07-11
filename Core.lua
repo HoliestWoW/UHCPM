@@ -47,3 +47,59 @@ function UHCPM.IsDarkSubZone(zoneName)
     if string.find(z, "mine") or string.find(z, "cave") or string.find(z, "crypt") or string.find(z, "den") or string.find(z, "lair") or string.find(z, "tomb") or string.find(z, "barrow") or string.find(z, "duskwood") or string.find(z, "scholomance") or string.find(z, "stratholme") or string.find(z, "maraudon") or string.find(z, "dire maul") or string.find(z, "scarlet monastery") or string.find(z, "shadowfang") then return true end
     return false
 end
+
+SLASH_UHCPMLEAVEPARTY1 = "/lp"
+SLASH_UHCPMLEAVEPARTY2 = "/leaveparty"
+SlashCmdList["UHCPMLEAVEPARTY"] = function()
+    LeaveParty()
+    print("You have left the party.")
+end
+
+-- Create a custom immersive alert frame for important events
+local AlertFrame = CreateFrame("Frame", nil, UIParent)
+AlertFrame:SetSize(400, 50)
+AlertFrame:SetPoint("TOP", UIParent, "TOP", 0, -150)
+AlertFrame:SetFrameStrata("HIGH")
+
+AlertFrame.text = AlertFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
+AlertFrame.text:SetAllPoints()
+AlertFrame.text:SetFont("Fonts\\FRIZQT__.TTF", 24, "OUTLINE")
+AlertFrame:SetAlpha(0)
+
+-- Animation group for fading in and out
+AlertFrame.anim = AlertFrame:CreateAnimationGroup()
+local fadeIn = AlertFrame.anim:CreateAnimation("Alpha")
+fadeIn:SetFromAlpha(0); fadeIn:SetToAlpha(1); fadeIn:SetDuration(0.5); fadeIn:SetOrder(1)
+local hold = AlertFrame.anim:CreateAnimation("Alpha")
+hold:SetFromAlpha(1); hold:SetToAlpha(1); hold:SetDuration(2.0); hold:SetOrder(2)
+local fadeOut = AlertFrame.anim:CreateAnimation("Alpha")
+fadeOut:SetFromAlpha(1); fadeOut:SetToAlpha(0); fadeOut:SetDuration(1.5); fadeOut:SetOrder(3)
+
+-- Global function so you can use this for other immersive pop-ups later
+function UHCPM.ShowAlert(message, r, g, b)
+    AlertFrame.text:SetText(message)
+    AlertFrame.text:SetTextColor(r or 1, g or 0.8, b or 0)
+    AlertFrame.anim:Stop()
+    AlertFrame.anim:Play()
+end
+
+-- Track group changes to trigger the alert
+local wasInParty = false
+local GroupTracker = CreateFrame("Frame")
+GroupTracker:RegisterEvent("GROUP_ROSTER_UPDATE")
+GroupTracker:RegisterEvent("PLAYER_ENTERING_WORLD")
+
+GroupTracker:SetScript("OnEvent", function(self, event)
+    local inParty = (GetNumGroupMembers() > 1)
+    
+    if event == "PLAYER_ENTERING_WORLD" then
+        wasInParty = inParty
+    elseif event == "GROUP_ROSTER_UPDATE" then
+        if inParty and not wasInParty then
+            UHCPM.ShowAlert("Joined Party\nType /lp to leave", 0.2, 1.0, 0.2) 
+        elseif not inParty and wasInParty then
+            UHCPM.ShowAlert("Left Party", 1.0, 0.2, 0.2)
+        end
+        wasInParty = inParty
+    end
+end)
