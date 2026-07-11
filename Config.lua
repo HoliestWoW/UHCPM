@@ -1,8 +1,18 @@
 local addonName, UHCPM = ...
-local defaults = { hideChat = false, combatHearts = false, hideErrors = false, lowHealthAudio = false, darknessAlpha = 0.95, hasCalibrated = false, reduceCameraMotion = false, hideActionBarArt = true }
+UHCPM.OriginalState = { cvars = {}, chatPoints = {} }
+local defaults = { 
+    hideChat = false, 
+    combatHearts = true, 
+    hideErrors = true, 
+    lowHealthAudio = true, 
+    darknessAlpha = 0.95, 
+    hasCalibrated = false, 
+    reduceCameraMotion = false, 
+    hideActionBarArt = true, 
+    showNPCNames = true 
+}
 local OptionsPanel = CreateFrame("Frame", "UHCPMOptionsPanel"); OptionsPanel.name = "Ultra Hardcore Pro Max"
 local title = OptionsPanel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge"); title:SetPoint("TOPLEFT", 16, -16); title:SetText("UHCPM - Immersion Settings")
-
 local function CreateCheckbox(name, labelText, yOffset, dbKey, callback)
     local cb = CreateFrame("CheckButton", name, OptionsPanel, "UICheckButtonTemplate"); cb:SetPoint("TOPLEFT", 16, yOffset); _G[name .. "Text"]:SetText(labelText)
     cb:SetScript("OnClick", function(self) UHCPM_Config[dbKey] = self:GetChecked(); if callback then callback(self:GetChecked()) end end); return cb
@@ -68,8 +78,11 @@ end)
 local barArtCb = CreateCheckbox("UHCPMBarArtToggle", "Hide Action Bar Art", -200, "hideActionBarArt", function(isChecked)
     if UHCPM.UpdateActionBarArt then UHCPM.UpdateActionBarArt(isChecked) end
 end)
+local npcNamesCb = CreateCheckbox("UHCPMNPCNamesToggle", "Show NPC Names", -230, "showNPCNames", function(isChecked)
+    SetCVar("UnitNameNPC", isChecked and "1" or "0")
+end)
 local calButton = CreateFrame("Button", "UHCPMCalOptionButton", OptionsPanel, "UIPanelButtonTemplate")
-calButton:SetPoint("TOPLEFT", 16, -240)
+calButton:SetPoint("TOPLEFT", 16, -270)
 calButton:SetSize(160, 26)
 calButton:SetText("Calibrate Darkness")
 calButton:SetScript("OnClick", function()
@@ -80,12 +93,102 @@ calButton:SetScript("OnClick", function()
     end
 end)
 
-if Settings and Settings.RegisterCanvasLayoutCategory then local category = Settings.RegisterCanvasLayoutCategory(OptionsPanel, OptionsPanel.name); Settings.RegisterAddOnCategory(category) else InterfaceOptions_AddCategory(OptionsPanel) end
+-- ==========================================
+-- RESTORE DEFAULTS LOGIC
+-- ==========================================
+local function RestoreDefaults()
+    if not UHCPM_Config then return end
+    
+    for k, v in pairs(defaults) do 
+        UHCPM_Config[k] = v 
+    end
+    
+    chatCb:SetChecked(UHCPM_Config.hideChat)
+    heartCb:SetChecked(UHCPM_Config.combatHearts)
+    errorCb:SetChecked(UHCPM_Config.hideErrors)
+    audioCb:SetChecked(UHCPM_Config.lowHealthAudio)
+    actionCamCb:SetChecked(UHCPM_Config.reduceCameraMotion)
+    barArtCb:SetChecked(UHCPM_Config.hideActionBarArt)
+    npcNamesCb:SetChecked(UHCPM_Config.showNPCNames)
+    
+    UHCPM.UpdateHeartVisuals()
+    UpdateChatVisibility(UHCPM_Config.hideChat)
+    UpdateErrorMessages(UHCPM_Config.hideErrors)
+    
+    SetCVar("test_cameraDynamicPitch", UHCPM_Config.reduceCameraMotion and "0" or "1")
+    SetCVar("test_cameraHeadMovementStrength", UHCPM_Config.reduceCameraMotion and "0" or "1")
+    SetCVar("UnitNameNPC", UHCPM_Config.showNPCNames and "1" or "0")
+    
+    if UHCPM.UpdateActionBarArt then 
+        UHCPM.UpdateActionBarArt(UHCPM_Config.hideActionBarArt) 
+    end
+    
+    print("UHCPM: Settings restored to default.")
+end
 
-local EventFrame = CreateFrame("Frame"); EventFrame:RegisterEvent("PLAYER_LOGIN"); EventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
+-- ==========================================
+-- CUSTOM DEFAULTS BUTTON & POPUP
+-- ==========================================
+StaticPopupDialogs["UHCPM_CONFIRM_DEFAULTS"] = {
+    text = "Reset all Ultra Hardcore Pro Max settings to their defaults?",
+    button1 = YES,
+    button2 = NO,
+    OnAccept = function() RestoreDefaults() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+local defaultsButton = CreateFrame("Button", "UHCPMMainDefaultsButton", OptionsPanel, "UIPanelButtonTemplate")
+defaultsButton:SetPoint("TOPRIGHT", OptionsPanel, "TOPRIGHT", -16, -16)
+defaultsButton:SetSize(96, 22) -- Matches standard Blizzard UI dimensions
+defaultsButton:SetText("Defaults")
+defaultsButton:SetScript("OnClick", function()
+    StaticPopup_Show("UHCPM_CONFIRM_DEFAULTS")
+end)
+
+-- Legacy support fallback
+OptionsPanel.default = RestoreDefaults
+
+-- ==========================================
+-- REGISTRATION
+-- ==========================================
+if Settings and Settings.RegisterCanvasLayoutCategory then 
+    local category = Settings.RegisterCanvasLayoutCategory(OptionsPanel, OptionsPanel.name)
+    Settings.RegisterAddOnCategory(category) 
+else 
+    InterfaceOptions_AddCategory(OptionsPanel) 
+end
+
+local EventFrame = CreateFrame("Frame")
+EventFrame:RegisterEvent("PLAYER_LOGIN")
+EventFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
+EventFrame:RegisterEvent("PLAYER_LOGOUT") -- Required for restoration
+
 EventFrame:SetScript("OnEvent", function(self, event)
     if event == "PLAYER_LOGIN" then
-        UHCPM_Config = UHCPM_Config or {}; for k, v in pairs(defaults) do if UHCPM_Config[k] == nil then UHCPM_Config[k] = v end end
+        local cvarsToCache = {
+            "chatBubbles", "Sound_EnableErrorSpeech", "test_cameraDynamicPitch", "test_cameraHeadMovementStrength",
+            "gamma", "UnitNameNPC", "nameplateShowEnemies", "nameplateShowFriends", "nameplateShowAll",
+            "test_cameraOverShoulder", "test_cameraTargetFocusEnemyEnable", "CameraKeepCharacterCentered",
+            "CameraReduceUnexpectedMovement", "cameraSmoothStyle", "cameraYawMoveSpeed", "test_cameraTargetFocusInteractEnable",
+            "test_cameraTargetFocusEnemyStrengthYaw", "test_cameraTargetFocusEnemyStrengthPitch", "cameraZoomSpeed",
+            "cameraDistanceMaxZoomFactor", "nameplateMaxDistance", "enableFloatingCombatText", "CombatDamage", "CombatHealing",
+            "cameraSavedDistance", "cameraSavedPitch", "cameraView"
+        }
+        for _, cvar in ipairs(cvarsToCache) do
+            UHCPM.OriginalState.cvars[cvar] = GetCVar(cvar)
+        end
+
+        if ChatFrame1 then
+            local p, rt, rp, x, y = ChatFrame1:GetPoint()
+            local w, h = ChatFrame1:GetSize()
+            UHCPM.OriginalState.chatPoints = {p, rt, rp, x, y, w, h}
+        end
+
+        UHCPM_Config = UHCPM_Config or {}
+        for k, v in pairs(defaults) do if UHCPM_Config[k] == nil then UHCPM_Config[k] = v end end
         
         chatCb:SetChecked(UHCPM_Config.hideChat)
         heartCb:SetChecked(UHCPM_Config.combatHearts)
@@ -93,13 +196,24 @@ EventFrame:SetScript("OnEvent", function(self, event)
         audioCb:SetChecked(UHCPM_Config.lowHealthAudio)
         actionCamCb:SetChecked(UHCPM_Config.reduceCameraMotion)
         barArtCb:SetChecked(UHCPM_Config.hideActionBarArt)
+        npcNamesCb:SetChecked(UHCPM_Config.showNPCNames)
 
-        UHCPM.UpdateHeartVisuals(); UpdateChatVisibility(UHCPM_Config.hideChat); UpdateErrorMessages(UHCPM_Config.hideErrors)
+        UHCPM.UpdateHeartVisuals()
+        UpdateChatVisibility(UHCPM_Config.hideChat)
+        UpdateErrorMessages(UHCPM_Config.hideErrors)
         
         SetCVar("test_cameraDynamicPitch", UHCPM_Config.reduceCameraMotion and "0" or "1")
         SetCVar("test_cameraHeadMovementStrength", UHCPM_Config.reduceCameraMotion and "0" or "1")
-		
+        SetCVar("UnitNameNPC", UHCPM_Config.showNPCNames and "1" or "0")
+        
         if UHCPM.UpdateActionBarArt then UHCPM.UpdateActionBarArt(UHCPM_Config.hideActionBarArt) end
+        
+        if not UHCPM_Config.hideChat and ChatFrame1 then
+            local w, h = ChatFrame1:GetSize()
+            ChatFrame1:ClearAllPoints()
+            ChatFrame1:SetSize(w, h)
+            ChatFrame1:SetPoint("TOPLEFT", UIParent, "TOPLEFT", 32, -62.5)
+        end
         
         if not UHCPM_Config.hasCalibrated then
             C_Timer.After(1.0, function()
@@ -108,7 +222,20 @@ EventFrame:SetScript("OnEvent", function(self, event)
             UHCPM_Config.hasCalibrated = true
         end
 
-    elseif event == "PLAYER_LEAVING_WORLD" then UHCPM.MuffleAudio(false) end
+    elseif event == "PLAYER_LEAVING_WORLD" then 
+        UHCPM.MuffleAudio(false) 
+        
+    elseif event == "PLAYER_LOGOUT" then
+        UHCPM.isLoggingOut = true
+        for cvar, val in pairs(UHCPM.OriginalState.cvars) do
+            if val ~= nil then SetCVar(cvar, val) end
+        end
+        if ChatFrame1 and UHCPM.OriginalState.chatPoints[1] then
+            ChatFrame1:ClearAllPoints()
+            ChatFrame1:SetSize(UHCPM.OriginalState.chatPoints[6], UHCPM.OriginalState.chatPoints[7])
+            ChatFrame1:SetPoint(unpack(UHCPM.OriginalState.chatPoints, 1, 5))
+        end
+    end
 end)
 
 -- ==========================================
@@ -206,6 +333,22 @@ resetButton:SetScript("OnClick", function()
     SetCVar("gamma", "1.0")
     gammaSlider:SetValue(1.0)
 end)
+
+-- ==========================================
+-- 4. SAVE & CLOSE BUTTON
+-- ==========================================
+local closeButton = CreateFrame("Button", "UHCPM_CalCloseButton", controls, "UIPanelButtonTemplate")
+closeButton:SetPoint("LEFT", resetButton, "RIGHT", 15, 0)
+closeButton:SetSize(120, 26)
+closeButton:SetText("Save & Close")
+
+closeButton:SetScript("OnClick", function()
+    calFrame:Hide()
+end)
+
+local escText = controls:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+escText:SetPoint("TOPLEFT", resetButton, "BOTTOMLEFT", 0, -15)
+escText:SetText("(You can also press ESC to save and exit)")
 
 -- ==========================================
 -- INITIALIZATION
