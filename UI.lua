@@ -113,8 +113,16 @@ function UHCPM.EnforceCameraAndPurgeUI()
     UHCPM.UpdateActionBarArt(hideArt)
     GameTooltip:HookScript("OnShow", function(s) 
         if TaxiFrame and TaxiFrame:IsShown() then return end
-        local _, i = s:GetItem(); local _, sp = s:GetSpell()
-        if not i and not sp then s:Hide() end 
+        if WorldMapFrame and WorldMapFrame:IsShown() then return end
+        local _, item = s:GetItem()
+        local _, spell = s:GetSpell()
+        if item or spell then return end 
+        local owner = s:GetOwner()
+        local _, unit = s:GetUnit()
+        if (owner == UIParent or owner == WorldFrame) and not unit then 
+            return 
+        end
+        s:Hide() 
     end)
     BuffFrame:Show()
 end
