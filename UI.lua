@@ -118,8 +118,14 @@ function UHCPM.EnforceCameraAndPurgeUI()
         local _, spell = s:GetSpell()
         if item or spell then return end 
         local owner = s:GetOwner()
+        if owner and owner.GetName and owner:GetName() then
+            local name = owner:GetName()
+            if string.match(name, "Talent") or string.match(name, "PlayerSpells") then
+                return
+            end
+        end
         local _, unit = s:GetUnit()
-        if (owner == UIParent or owner == WorldFrame) and not unit then 
+        if owner and (owner == UIParent or owner == WorldFrame) and not unit then 
             return 
         end
         s:Hide() 
