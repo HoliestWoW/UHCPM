@@ -43,8 +43,11 @@ end
 function UHCPM.IsDarkSubZone(zoneName)
     if not zoneName then return false end
     local z = string.lower(zoneName)
-    if string.find(z, "ragefire") or string.find(z, "molten") or string.find(z, "searing") or string.find(z, "blackrock") or string.find(z, "forge") or string.find(z, "fire") or string.find(z, "woodshop") then return false end
-    if string.find(z, "mine") or string.find(z, "cave") or string.find(z, "crypt") or string.find(z, "den") or string.find(z, "lair") or string.find(z, "tomb") or string.find(z, "barrow") or string.find(z, "duskwood") or string.find(z, "scholomance") or string.find(z, "stratholme") or string.find(z, "maraudon") or string.find(z, "dire maul") or string.find(z, "scarlet monastery") or string.find(z, "shadowfang") then return true end
+    
+    if string.find(z, "ragefire") or string.find(z, "molten") or string.find(z, "searing") or string.find(z, "blackrock") or string.find(z, "forge") or string.find(z, "fire") or string.find(z, "woodshop") or string.find(z, "gnomeregan") or string.find(z, "moon") then return false end
+    
+    if string.find(z, "mine") or string.find(z, "cave") or string.find(z, "crypt") or string.find(z, "den") or string.find(z, "lair") or string.find(z, "tomb") or string.find(z, "barrow") or string.find(z, "duskwood") or string.find(z, "scholomance") or string.find(z, "stratholme") or string.find(z, "maraudon") or string.find(z, "dire maul") or string.find(z, "scarlet monastery") or string.find(z, "shadowfang") or string.find(z, "skull rock") or string.find(z, "tunnel") or string.find(z, "hold") or string.find(z, "hive") or string.find(z, "deeps") or string.find(z, "uldaman") or string.find(z, "catacomb") or string.find(z, "vault") or string.find(z, "razorfen") or string.find(z, "naxxramas") or string.find(z, "burrow") or string.find(z, "grotto") or string.find(z, "excavation") or string.find(z, "cellar") or string.find(z, "sunken temple") or string.find(z, "atal'hakkar") then return true end
+    
     return false
 end
 
