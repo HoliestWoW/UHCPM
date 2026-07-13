@@ -111,25 +111,56 @@ function UHCPM.EnforceCameraAndPurgeUI()
 	local hideArt = (UHCPM_Config and UHCPM_Config.hideActionBarArt)
     if hideArt == nil then hideArt = true end
     UHCPM.UpdateActionBarArt(hideArt)
-    GameTooltip:HookScript("OnShow", function(s) 
-        if TaxiFrame and TaxiFrame:IsShown() then return end
-        if WorldMapFrame and WorldMapFrame:IsShown() then return end
-        local _, item = s:GetItem()
-        local _, spell = s:GetSpell()
-        if item or spell then return end 
-        local owner = s:GetOwner()
-        if owner and owner.GetName and owner:GetName() then
-            local name = owner:GetName()
-            if string.match(name, "Talent") or string.match(name, "PlayerSpells") then
-                return
+    -- ==========================================
+    -- TOOLTIP ENGINE (WHITELIST)
+    -- ==========================================
+    if not GameTooltip.UHCPM_TooltipHooked then
+        local function FilterUHCPMTooltip(s)
+            -- 1. Full-Screen Maps
+            if TaxiFrame and TaxiFrame:IsShown() then return end
+            if WorldMapFrame and WorldMapFrame:IsShown() then return end
+
+            -- 2. Core Gameplay (Items and Spells)
+            local _, item = s:GetItem()
+            local _, spell = s:GetSpell()
+            if item or spell then return end 
+
+            -- 3. Talents
+            local owner = s:GetOwner()
+            if owner and owner.GetName and owner:GetName() then
+                local name = owner:GetName()
+                if string.match(name, "Talent") or string.match(name, "PlayerSpells") then
+                    return
+                end
             end
+
+            -- 4. 3D World Objects
+            local _, unit = s:GetUnit()
+            if owner and (owner == UIParent or owner == WorldFrame) and not unit then 
+                return 
+            end
+
+            -- Purge everything else
+            s:Hide()
         end
-        local _, unit = s:GetUnit()
-        if owner and (owner == UIParent or owner == WorldFrame) and not unit then 
-            return 
+
+        -- Hook the initial tooltip pop
+        GameTooltip:HookScript("OnShow", FilterUHCPMTooltip)
+
+        -- Hook the dynamic update (catches sliding from a sign directly onto a mob)
+        if TooltipDataProcessor then
+            -- Modern WoW Clients
+            TooltipDataProcessor.AddTooltipPostCall(Enum.TooltipDataType.Unit, function(tooltip)
+                if tooltip == GameTooltip then FilterUHCPMTooltip(tooltip) end
+            end)
+        else
+            -- Classic/Legacy WoW Clients
+            GameTooltip:HookScript("OnTooltipSetUnit", FilterUHCPMTooltip)
         end
-        s:Hide() 
-    end)
+        
+        GameTooltip.UHCPM_TooltipHooked = true
+    end
+    
     BuffFrame:Show()
 end
 
