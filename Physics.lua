@@ -94,12 +94,58 @@ UHCPM.coreFrame:SetScript("OnUpdate", function(self, elapsed)
     elseif state.playerPowerType == 0 or state.playerPowerType == 3 then if state.playerPowerRatio >= 0.50 then shouldSpawn = true; intensity = (state.playerPowerRatio - 0.50) * 2 end end
     if shouldSpawn and timeSinceLastSpawn >= (0.10 - (intensity * 0.09)) then UHCPM.SpawnParticle(state.playerPowerType, state.playerPowerRatio); timeSinceLastSpawn = 0 end
     
-    if state.isAsphyxiating then
-        local ax, at = 1, ""
-        for i = 1, 3 do local timer, value, maxvalue = GetMirrorTimerInfo(i); if (timer == "BREATH" or timer == "EXHAUSTION") and maxvalue > 0 then ax = value / maxvalue; at = timer; break end end
-        if at == "BREATH" then UI.drownTex:SetColorTexture(0.02, 0.08, 0.15) elseif at == "EXHAUSTION" then UI.drownTex:SetColorTexture(0.1, 0.1, 0.1) end
-        UI.drownVignette:SetAlpha((1 - ax) * 0.90) 
-    else UI.drownVignette:SetAlpha(0) end
+    local targetDrownAlpha = 0
+    local tunnelThickness = 0
+    local at = ""
+    
+    for i = 1, 3 do 
+        local timer, value, maxvalue, scale = GetMirrorTimerInfo(i)
+        if (timer == "BREATH" or timer == "EXHAUSTION") and maxvalue and maxvalue > 0 then 
+            at = timer
+            local currentValue = GetMirrorTimerProgress(timer)
+            if not currentValue then currentValue = value end
+            
+            if scale and scale < 0 then
+                local missingRatio = 1 - (currentValue / maxvalue)
+                
+                targetDrownAlpha = missingRatio ^ 3 
+                
+                tunnelThickness = missingRatio ^ 5
+            else
+                targetDrownAlpha = 0 
+                tunnelThickness = 0
+            end
+            break 
+        end 
+    end
+
+    if at == "BREATH" then 
+        UI.drownTex:SetColorTexture(0.02, 0.08, 0.15) 
+    elseif at == "EXHAUSTION" then 
+        UI.drownTex:SetColorTexture(0.1, 0.1, 0.1) 
+    end
+
+    targetDrownAlpha = math.max(0, math.min(0.95, targetDrownAlpha))
+    
+    local currentDrownAlpha = UI.drownVignette:GetAlpha()
+    if currentDrownAlpha < targetDrownAlpha then
+        currentDrownAlpha = math.min(currentDrownAlpha + (elapsed * 0.5), targetDrownAlpha)
+    elseif currentDrownAlpha > targetDrownAlpha then
+        currentDrownAlpha = math.max(currentDrownAlpha - (elapsed * 1.5), targetDrownAlpha)
+    end
+    
+    UI.drownVignette:SetAlpha(currentDrownAlpha)
+
+    if UI.drownTop then
+        local sw, sh = UIParent:GetWidth(), UIParent:GetHeight()
+        local th = math.max(1, sh * 0.75 * tunnelThickness)
+        local tw = math.max(1, sw * 0.75 * tunnelThickness)
+        
+        UI.drownTop:SetHeight(th)
+        UI.drownBot:SetHeight(th)
+        UI.drownLeft:SetWidth(tw)
+        UI.drownRight:SetWidth(tw)
+    end
     
     if not InCombatLockdown() then
         local isPrep = ((SpellBookFrame and SpellBookFrame:IsShown()) or (CharacterFrame and CharacterFrame:IsShown()) or CursorHasSpell() or CursorHasItem() or CursorHasMacro()) and true or false

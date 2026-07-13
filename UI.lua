@@ -11,7 +11,16 @@ UI.darknessOverlay = CreateFrame("Frame", nil, UIParent); UI.darknessOverlay:Set
 UI.darknessTex = UI.darknessOverlay:CreateTexture(nil, "BACKGROUND"); UI.darknessTex:SetAllPoints(); UI.darknessTex:SetColorTexture(0, 0, 0); UI.darknessTex:SetAlpha(0)
 
 UI.drownVignette = CreateFrame("Frame", nil, UIParent); UI.drownVignette:SetAllPoints(); UI.drownVignette:SetFrameStrata("FULLSCREEN") 
-UI.drownTex = UI.drownVignette:CreateTexture(nil, "BACKGROUND"); UI.drownTex:SetAllPoints(); UI.drownTex:SetColorTexture(0.02, 0.08, 0.15); UI.drownVignette:SetAlpha(0)
+UI.drownTex = UI.drownVignette:CreateTexture(nil, "BACKGROUND"); UI.drownTex:SetAllPoints(); UI.drownTex:SetColorTexture(0.02, 0.08, 0.15)
+UI.drownTex:SetAlpha(0.6)
+
+local black = CreateColor(0, 0, 0, 1)
+UI.drownTop = UI.drownVignette:CreateTexture(nil, "ARTWORK"); UI.drownTop:SetPoint("TOPLEFT"); UI.drownTop:SetPoint("TOPRIGHT"); UI.drownTop:SetColorTexture(1, 1, 1, 1); UI.drownTop:SetGradient("VERTICAL", colors.transparent, black)
+UI.drownBot = UI.drownVignette:CreateTexture(nil, "ARTWORK"); UI.drownBot:SetPoint("BOTTOMLEFT"); UI.drownBot:SetPoint("BOTTOMRIGHT"); UI.drownBot:SetColorTexture(1, 1, 1, 1); UI.drownBot:SetGradient("VERTICAL", black, colors.transparent)
+UI.drownLeft = UI.drownVignette:CreateTexture(nil, "ARTWORK"); UI.drownLeft:SetPoint("TOPLEFT"); UI.drownLeft:SetPoint("BOTTOMLEFT"); UI.drownLeft:SetColorTexture(1, 1, 1, 1); UI.drownLeft:SetGradient("HORIZONTAL", black, colors.transparent)
+UI.drownRight = UI.drownVignette:CreateTexture(nil, "ARTWORK"); UI.drownRight:SetPoint("TOPRIGHT"); UI.drownRight:SetPoint("BOTTOMRIGHT"); UI.drownRight:SetColorTexture(1, 1, 1, 1); UI.drownRight:SetGradient("HORIZONTAL", colors.transparent, black)
+
+UI.drownVignette:SetAlpha(0)
 
 UI.resVignette = CreateFrame("Frame", nil, UIParent); UI.resVignette:SetAllPoints(); UI.resVignette:SetFrameStrata("LOW"); UI.resVignette:SetFrameLevel(1)
 UI.resTex = UI.resVignette:CreateTexture(nil, "BACKGROUND"); UI.resTex:SetPoint("BOTTOMLEFT"); UI.resTex:SetPoint("BOTTOMRIGHT"); UI.resTex:SetHeight(UIParent:GetHeight() * 0.35); UI.resTex:SetColorTexture(1, 1, 1, 1); UI.resTex:SetGradient("VERTICAL", colors.transparent, colors.transparent); UI.resVignette:SetAlpha(0)
