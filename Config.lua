@@ -8,6 +8,7 @@ local defaults = {
     darknessAlpha = 0.95, 
     hasCalibrated = false, 
     reduceCameraMotion = false, 
+	disableTargetTracking = false,
     hideActionBarArt = true, 
     showNPCNames = true 
 }
@@ -75,14 +76,18 @@ local actionCamCb = CreateCheckbox("UHCPMActionCamToggle", "Reduce Camera Motion
     SetCVar("test_cameraDynamicPitch", isChecked and "0" or "1")
     SetCVar("test_cameraHeadMovementStrength", isChecked and "0" or "1")
 end)
-local barArtCb = CreateCheckbox("UHCPMBarArtToggle", "Hide Action Bar Art", -200, "hideActionBarArt", function(isChecked)
+local trackingCb = CreateCheckbox("UHCPMTrackingToggle", "Disable Camera Target Tracking", -200, "disableTargetTracking", function(isChecked)
+    SetCVar("test_cameraTargetFocusEnemyEnable", isChecked and "0" or "1")
+    SetCVar("test_cameraTargetFocusInteractEnable", isChecked and "0" or "1")
+end)
+local barArtCb = CreateCheckbox("UHCPMBarArtToggle", "Hide Action Bar Art", -230, "hideActionBarArt", function(isChecked)
     if UHCPM.UpdateActionBarArt then UHCPM.UpdateActionBarArt(isChecked) end
 end)
-local npcNamesCb = CreateCheckbox("UHCPMNPCNamesToggle", "Show NPC Names", -230, "showNPCNames", function(isChecked)
+local npcNamesCb = CreateCheckbox("UHCPMNPCNamesToggle", "Show NPC Names", -260, "showNPCNames", function(isChecked)
     SetCVar("UnitNameNPC", isChecked and "1" or "0")
 end)
 local calButton = CreateFrame("Button", "UHCPMCalOptionButton", OptionsPanel, "UIPanelButtonTemplate")
-calButton:SetPoint("TOPLEFT", 16, -270)
+calButton:SetPoint("TOPLEFT", 16, -300)
 calButton:SetSize(160, 26)
 calButton:SetText("Calibrate Darkness")
 calButton:SetScript("OnClick", function()
@@ -110,7 +115,7 @@ local function RestoreDefaults()
     actionCamCb:SetChecked(UHCPM_Config.reduceCameraMotion)
     barArtCb:SetChecked(UHCPM_Config.hideActionBarArt)
     npcNamesCb:SetChecked(UHCPM_Config.showNPCNames)
-    
+	trackingCb:SetChecked(UHCPM_Config.disableTargetTracking)
     UHCPM.UpdateHeartVisuals()
     UpdateChatVisibility(UHCPM_Config.hideChat)
     UpdateErrorMessages(UHCPM_Config.hideErrors)
@@ -191,7 +196,7 @@ EventFrame:SetScript("OnEvent", function(self, event)
         actionCamCb:SetChecked(UHCPM_Config.reduceCameraMotion)
         barArtCb:SetChecked(UHCPM_Config.hideActionBarArt)
         npcNamesCb:SetChecked(UHCPM_Config.showNPCNames)
-
+		trackingCb:SetChecked(UHCPM_Config.disableTargetTracking)
         UHCPM.UpdateHeartVisuals()
         UpdateChatVisibility(UHCPM_Config.hideChat)
         UpdateErrorMessages(UHCPM_Config.hideErrors)

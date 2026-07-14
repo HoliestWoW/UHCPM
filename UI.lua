@@ -181,19 +181,20 @@ if IsResting() then restingFrame:Show() end
 local CVarProtector = CreateFrame("Frame"); CVarProtector:RegisterEvent("PLAYER_ENTERING_WORLD"); CVarProtector:RegisterEvent("CVAR_UPDATE")
 local updateTimer = 0; CVarProtector:SetScript("OnUpdate", function(self, elapsed) if updateTimer > 0 then updateTimer = updateTimer - elapsed; if updateTimer <= 0 then CVarProtector:SetScript("OnUpdate", nil) end end end)
 CVarProtector:SetScript("OnEvent", function(self, event, cvarName)
-    if UHCPM.isLoggingOut then return end -- Stand down during logout restoration
-    
+    if UHCPM.isLoggingOut then return end  
     local pitchAndHeadBob = (UHCPM_Config and UHCPM_Config.reduceCameraMotion) and "0" or "1"
-    local expectedNPCNames = (UHCPM_Config and UHCPM_Config.showNPCNames) and "1" or "0"
-    
+    local targetTracking = (UHCPM_Config and UHCPM_Config.disableTargetTracking) and "0" or "1"
+    local expectedNPCNames = (UHCPM_Config and UHCPM_Config.showNPCNames) and "1" or "0" 
     local protectedCVars = { 
         ["nameplateShowEnemies"] = "0", ["nameplateShowFriends"] = "0", ["nameplateShowAll"] = "0", 
         ["test_cameraDynamicPitch"] = pitchAndHeadBob, 
         ["test_cameraHeadMovementStrength"] = pitchAndHeadBob, 
         ["UnitNameNPC"] = expectedNPCNames,
-        ["test_cameraOverShoulder"] = "1.2", ["test_cameraTargetFocusEnemyEnable"] = "1", 
+        ["test_cameraOverShoulder"] = "1.2", 
+        ["test_cameraTargetFocusEnemyEnable"] = targetTracking, 
+        ["test_cameraTargetFocusInteractEnable"] = targetTracking, 
         ["CameraKeepCharacterCentered"] = "0", ["CameraReduceUnexpectedMovement"] = "0", 
-        ["cameraSmoothStyle"] = "2", ["cameraYawMoveSpeed"] = "0", ["test_cameraTargetFocusInteractEnable"] = "1", 
+        ["cameraSmoothStyle"] = "2", ["cameraYawMoveSpeed"] = "0", 
         ["test_cameraTargetFocusEnemyStrengthYaw"] = "1.0", ["test_cameraTargetFocusEnemyStrengthPitch"] = "0.75", 
         ["cameraZoomSpeed"] = "0", ["cameraDistanceMaxZoomFactor"] = "1", ["nameplateMaxDistance"] = "5", 
         ["enableFloatingCombatText"] = "0", ["CombatDamage"] = "0", ["CombatHealing"] = "0" 
