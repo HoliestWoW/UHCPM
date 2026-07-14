@@ -41,11 +41,47 @@ UHCPM.coreFrame:SetScript("OnUpdate", function(self, elapsed)
         else UI.healthVignette:SetAlpha(0); timeSinceLastHeartbeat = 0; UHCPM.MuffleAudio(false); if activeHeartbeatHandle then StopSound(activeHeartbeatHandle); activeHeartbeatHandle = nil end end
     end
 
+    -- Polling engine to seamlessly catch silent archway crossings
+    mapTimer = mapTimer + elapsed
+    if mapTimer > 0.5 then
+        mapTimer = 0
+        local currentIsDark = UHCPM.IsDarkSubZone(GetMinimapZoneText())
+        if currentIsDark and not state.isIndoors then 
+            local px, py = UnitPosition("player")
+            state.entranceX = px or 0; state.entranceY = py or 0; state.isIndoors = true
+            if UHCPM_Config then UHCPM_Config.savedEntranceX = state.entranceX; UHCPM_Config.savedEntranceY = state.entranceY end
+        elseif not currentIsDark and state.isIndoors then 
+            state.isIndoors = false; state.entranceX = nil; state.entranceY = nil
+            if UHCPM_Config then UHCPM_Config.savedEntranceX = nil; UHCPM_Config.savedEntranceY = nil end
+        end
+    end
+
     local ambientDarkness = 0
-    if state.isIndoors and state.entranceX then
+    local isCatVision = false
+    
+    if state.isIndoors then
         local maxDarkness = (UHCPM_Config and UHCPM_Config.darknessAlpha) or 0.95
-        local px, py = UnitPosition("player"); local distSq = ((px - state.entranceX) ^ 2) + ((py - state.entranceY) ^ 2); 
+        
+        -- Druid Cat Form Filter (Form ID 1)
+        if GetShapeshiftFormID and GetShapeshiftFormID() == 1 then
+            maxDarkness = math.min(maxDarkness, 0.60) 
+            isCatVision = true
+        end
+        
+        local px, py = UnitPosition("player")
+        local distSq = 10000 -- Instantly dark if the game map API fails in unmapped instances
+        if px and state.entranceX then
+            distSq = ((px - state.entranceX) ^ 2) + ((py - state.entranceY) ^ 2)
+        end
+        
         ambientDarkness = math.min(math.max(0, math.sqrt(distSq) - 2.0) * 0.15, maxDarkness)
+    end
+
+    -- Apply the color filter based on feline vision
+    if isCatVision then
+        UI.darknessTex:SetColorTexture(0.02, 0.12, 0.08) -- Teal/Green biological night vision tint
+    else
+        UI.darknessTex:SetColorTexture(0, 0, 0) -- Normal human pitch black
     end
 
     local targetAlpha = UnitIsDeadOrGhost("player") and 0 or ambientDarkness

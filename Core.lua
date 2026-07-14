@@ -44,9 +44,27 @@ function UHCPM.IsDarkSubZone(zoneName)
     if not zoneName then return false end
     local z = string.lower(zoneName)
     
-    if string.find(z, "ragefire") or string.find(z, "molten") or string.find(z, "searing") or string.find(z, "blackrock") or string.find(z, "forge") or string.find(z, "fire") or string.find(z, "woodshop") or string.find(z, "gnomeregan") or string.find(z, "moon") then return false end
+    -- 1. Explicitly Bright Zones (Lava, glowing cities, etc.)
+    if string.find(z, "ragefire") or string.find(z, "molten") or string.find(z, "searing") or string.find(z, "blackrock") or string.find(z, "forge") or string.find(z, "fire") or string.find(z, "woodshop") or string.find(z, "gnomeregan") or string.find(z, "moon") then 
+        return false 
+    end
     
-    if string.find(z, "mine") or string.find(z, "cave") or string.find(z, "crypt") or string.find(z, "den") or string.find(z, "lair") or string.find(z, "tomb") or string.find(z, "barrow") or string.find(z, "duskwood") or string.find(z, "scholomance") or string.find(z, "stratholme") or string.find(z, "maraudon") or string.find(z, "dire maul") or string.find(z, "scarlet monastery") or string.find(z, "shadowfang") or string.find(z, "skull rock") or string.find(z, "tunnel") or string.find(z, "hold") or string.find(z, "hive") or string.find(z, "deeps") or string.find(z, "uldaman") or string.find(z, "catacomb") or string.find(z, "vault") or string.find(z, "razorfen") or string.find(z, "naxxramas") or string.find(z, "burrow") or string.find(z, "grotto") or string.find(z, "excavation") or string.find(z, "cellar") or string.find(z, "sunken temple") or string.find(z, "atal'hakkar") then return true end
+    -- 2. Whole Zones/Instances that are ALWAYS dark (No indoor check needed)
+    local darkZones = {"duskwood", "scholomance", "stratholme", "maraudon", "dire maul", "scarlet monastery", "shadowfang", "uldaman", "razorfen", "naxxramas", "sunken temple", "atal'hakkar"}
+    for _, zone in ipairs(darkZones) do
+        if string.find(z, zone) then return true end
+    end
+    
+    -- 3. Dynamic Sub-Zones (Caves, Mines, Crypts) - REQUIRES being physically indoors
+    local darkSubZones = {"mine", "cave", "crypt", "den", "lair", "tomb", "barrow", "skull rock", "tunnel", "hold", "hive", "deeps", "catacomb", "vault", "burrow", "grotto", "excavation", "cellar"}
+    for _, subZone in ipairs(darkSubZones) do
+        if string.find(z, subZone) then 
+            -- The game's native API verifies if you actually crossed the threshold into the cave
+            if IsIndoors and IsIndoors() then
+                return true
+            end
+        end
+    end
     
     return false
 end
