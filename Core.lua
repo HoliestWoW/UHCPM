@@ -24,20 +24,88 @@ UHCPM.coreFrame = CreateFrame("Frame", "UHProMaxCore", UIParent)
 
 function UHCPM.RandomFloat() return math.random(0, 1000) / 1000 end
 
+-- Hidden Tooltip Scanner for reading Wand damage types
+local wandScanner = CreateFrame("GameTooltip", "UHPMWandScanner", nil, "GameTooltipTemplate")
+
+-- Cache variables so we don't scan tooltips 60 times a second
+local cachedLightLevel = 1.0
+local lightCacheDirty = true
+
+-- Tracker to only update the scan when equipment actually changes
+local equipmentTracker = CreateFrame("Frame")
+equipmentTracker:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
+equipmentTracker:RegisterEvent("PLAYER_ENTERING_WORLD")
+equipmentTracker:SetScript("OnEvent", function()
+    lightCacheDirty = true
+end)
+
 function UHCPM.GetEquippedLightLevel()
+    -- Return the cached value immediately to save framerate
+    if not lightCacheDirty then return cachedLightLevel end
+
     local slots = {16, 17, 18}
-    local keywords = {"torch", "lantern", "lamp", "beacon", "candle", "flame", "fire", "brazier"}
+    local keywords = {"torch", "lantern", "lamp", "beacon", "candle", "flame", "fire", "brazier", "glowing", "radiant", "luminous"}
     local bestLight = 1.0 
+    
     for _, slot in ipairs(slots) do
         local itemLink = GetInventoryItemLink("player", slot)
         if itemLink then
             local lowerLink = string.lower(itemLink)
-            for _, keyword in ipairs(keywords) do if string.find(lowerLink, keyword) then return 0.40 end end
-            local _, _, _, _, _, _, _, _, _, _, _, classID, subclassID = GetItemInfo(itemLink)
-            if classID and classID == 2 and subclassID == 19 then bestLight = 0.60 end
+            local isPhysicalLight = false
+            
+            -- 1. Check for physical light sources
+            for _, keyword in ipairs(keywords) do 
+                if string.find(lowerLink, keyword) then 
+                    isPhysicalLight = true
+                    if bestLight > 0.40 then bestLight = 0.40 end
+                    break
+                end 
+            end
+            
+            -- 2. Check for Wands (Only if the item isn't already a torch)
+            if not isPhysicalLight then
+                local _, _, _, _, _, _, _, _, _, _, _, classID, subclassID = GetItemInfo(itemLink)
+                
+                if classID and classID == 2 and subclassID == 19 then 
+                    -- [FIXED] Tooltips MUST have their owner set right before reading
+                    wandScanner:SetOwner(UIParent, "ANCHOR_NONE")
+                    wandScanner:ClearLines()
+                    wandScanner:SetInventoryItem("player", slot)
+                    
+                    local foundValidMagic = false
+                    for i = 2, wandScanner:NumLines() do 
+                        local lineFrame = _G["UHPMWandScannerTextLeft" .. i]
+                        if lineFrame then
+                            local text = lineFrame:GetText()
+                            if text then
+                                local lowerText = string.lower(text)
+                                if string.find(lowerText, "fire damage") or 
+                                   string.find(lowerText, "arcane damage") or 
+                                   string.find(lowerText, "holy damage") then
+                                   
+                                    foundValidMagic = true
+                                    break
+                                end
+                            end
+                        end
+                    end
+                    
+                    -- Hide the tooltip to prevent UI bugs
+                    wandScanner:Hide()
+                    
+                    if foundValidMagic and bestLight > 0.80 then 
+                        bestLight = 0.80 
+                    end
+                end
+            end
         end
     end
-    return bestLight
+    
+    -- Cache the result so we don't have to scan again until gear changes
+    cachedLightLevel = bestLight
+    lightCacheDirty = false
+    
+    return cachedLightLevel
 end
 
 function UHCPM.IsDarkSubZone(zoneName)
@@ -124,3 +192,41 @@ GroupTracker:SetScript("OnEvent", function(self, event)
         wasInParty = inParty
     end
 end)
+
+-- ==========================================
+-- UHCPM ITEM TOOLTIP DEBUGGER
+-- ==========================================
+SLASH_UHCPMDEBUG1 = "/wandtest"
+SlashCmdList["UHCPMDEBUG"] = function()
+    -- Check if an item is currently held on the mouse cursor
+    local infoType, itemID, itemLink = GetCursorInfo()
+    
+    if infoType ~= "item" or not itemLink then
+        print("UHCPM: Please pick up an item on your mouse cursor first, then type /wandtest")
+        return
+    end
+
+    print("--- UHCPM Tooltip Debugger ---")
+    print("Item:", itemLink)
+    
+    -- Verify the item classification
+    local _, _, _, _, _, _, _, _, _, _, _, classID, subclassID = GetItemInfo(itemLink)
+    print("ClassID:", classID, "| SubclassID:", subclassID)
+    
+    -- Create a fresh scanner frame just for this test
+    local scanner = CreateFrame("GameTooltip", "UHPMDebugScanner", nil, "GameTooltipTemplate")
+    scanner:SetOwner(UIParent, "ANCHOR_NONE")
+    scanner:ClearLines()
+    scanner:SetHyperlink(itemLink)
+    
+    -- Dump every single line of text on the left side of the tooltip
+    print("Tooltip Lines:")
+    for i = 1, scanner:NumLines() do
+        local lineFrame = _G["UHPMDebugScannerTextLeft" .. i]
+        local text = lineFrame and lineFrame:GetText() or "N/A"
+        print(i .. ": [" .. text .. "]")
+    end
+    
+    scanner:Hide()
+    print("------------------------------")
+end
