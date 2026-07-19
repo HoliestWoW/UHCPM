@@ -137,9 +137,13 @@ function UHCPM.IsDarkSubZone(zoneName)
     return false
 end
 
+-- ==========================================
+-- IMMERSIVE PET MANAGEMENT
+-- ==========================================
 local petFrameCentered = false
 local petFrameTimer = nil
 
+-- The callback function MUST be declared above the slash command
 local function BanishPetFrame()
     if not petFrameCentered then return end
     
@@ -157,12 +161,40 @@ end
 
 SLASH_UHCPMPETMENU1 = "/pet"
 SlashCmdList["UHCPMPETMENU"] = function()
+    -- Block if no pet exists and frame is hidden
+    if not petFrameCentered and not UnitExists("pet") then
+        print("You don't have an active pet.")
+        return
+    end
+
     if InCombatLockdown() then
         UHCPM.ShowAlert("Cannot move UI in combat!", 1.0, 0.2, 0.2)
         return
     end
 
     if not petFrameCentered then
+        -- Ensure the SavedVariables database exists
+        UHCPM_Config = UHCPM_Config or {}
+        
+        -- Cooldown Check using real-world epoch time to persist through logouts
+        local currentPetGUID = UnitGUID("pet")
+        local currentTime = time() 
+        local commandCooldown = 300 -- 5 minutes in seconds
+        
+        if UHCPM_Config.petCooldownGUID == currentPetGUID then
+            -- Calculates the real-world time delta since the command was last used
+            local timeSinceLast = currentTime - (UHCPM_Config.petCooldownTime or 0)
+            if timeSinceLast < commandCooldown then
+                local remaining = math.ceil(commandCooldown - timeSinceLast)
+                print("Pet management is on cooldown. Please wait " .. remaining .. " seconds.")
+                return
+            end
+        end
+        
+        -- Passed Cooldown! Log this successful attempt directly into the saved config database
+        UHCPM_Config.petCooldownGUID = currentPetGUID
+        UHCPM_Config.petCooldownTime = currentTime
+
         PetFrame:SetParent(UIParent)
         PetFrame:Show()
         PetFrame:SetAlpha(1)
@@ -176,9 +208,108 @@ SlashCmdList["UHCPMPETMENU"] = function()
         if petFrameTimer then petFrameTimer:Cancel() end
         petFrameTimer = C_Timer.NewTimer(10, BanishPetFrame)
     else
+        -- Manual override to hide it early
         if petFrameTimer then petFrameTimer:Cancel() end
         BanishPetFrame()
     end
+end
+
+local _, playerClass = UnitClass("player")
+
+if playerClass == "HUNTER" then
+    local PetHappinessFrame = CreateFrame("Frame", "UHCMPetHappiness", UIParent)
+    PetHappinessFrame:SetSize(24, 24)
+    PetHappinessFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -100) 
+
+    local happTex = PetHappinessFrame:CreateTexture(nil, "BACKGROUND")
+    happTex:SetAllPoints()
+    happTex:SetTexture("Interface\\PetPaperDollFrame\\UI-PetHappiness")
+    PetHappinessFrame:Hide()
+
+    local PetTooltip = CreateFrame("Frame", nil, PetHappinessFrame, "BackdropTemplate")
+    PetTooltip:SetPoint("BOTTOMLEFT", PetHappinessFrame, "TOPRIGHT", 5, 5)
+    PetTooltip:SetSize(240, 55)
+    PetTooltip:SetBackdrop({
+        bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+        edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+        edgeSize = 12, insets = {left = 2, right = 2, top = 2, bottom = 2}
+    })
+    PetTooltip:SetBackdropColor(0, 0, 0, 0.9)
+    PetTooltip:Hide()
+
+    local ttTitle = PetTooltip:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    ttTitle:SetPoint("TOPLEFT", 8, -8)
+    ttTitle:SetText("Pet Happiness")
+
+    local ttDesc = PetTooltip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    ttDesc:SetPoint("TOPLEFT", ttTitle, "BOTTOMLEFT", 0, -4)
+    ttDesc:SetJustifyH("LEFT")
+    ttDesc:SetText("Indicates your pet's current mood.\nType /peticon to lock/unlock.")
+
+    local isIconLocked = true
+    PetHappinessFrame:SetMovable(true)
+    PetHappinessFrame:EnableMouse(true)
+    PetHappinessFrame:RegisterForDrag("LeftButton")
+
+    PetHappinessFrame:SetScript("OnDragStop", function(self)
+        self:StopMovingOrSizing()
+        if UHCPM_Config then
+            UHCPM_Config.petIconX = self:GetLeft()
+            UHCPM_Config.petIconY = self:GetBottom()
+        end
+    end)
+
+    PetHappinessFrame:SetScript("OnEnter", function() PetTooltip:Show() end)
+    PetHappinessFrame:SetScript("OnLeave", function() PetTooltip:Hide() end)
+
+    SLASH_UHCPMPETICON1 = "/peticon"
+    SlashCmdList["UHCPMPETICON"] = function()
+        isIconLocked = not isIconLocked
+        if isIconLocked then
+            UHCPM.ShowAlert("Pet Icon Locked.", 1.0, 0.8, 0)
+            if not UnitExists("pet") then PetHappinessFrame:Hide() end
+        else
+            UHCPM.ShowAlert("Pet Icon Unlocked.\nDrag to move.", 0.2, 1.0, 0.2)
+            PetHappinessFrame:Show()
+            happTex:SetTexCoord(0, 0.1875, 0, 0.359375) 
+            happTex:SetVertexColor(1, 1, 1, 0.8) 
+        end
+    end
+
+    local function UpdatePetHappiness(self, event)
+        if event == "PLAYER_ENTERING_WORLD" then
+            if UHCPM_Config and UHCPM_Config.petIconX and UHCPM_Config.petIconY then
+                PetHappinessFrame:ClearAllPoints()
+                PetHappinessFrame:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", UHCPM_Config.petIconX, UHCPM_Config.petIconY)
+            end
+        end
+
+        if not UnitExists("pet") then 
+            if isIconLocked then PetHappinessFrame:Hide() end
+            return
+        end
+        
+        local happiness = GetPetHappiness()
+        if not happiness then return end
+        
+        PetHappinessFrame:Show()
+        
+        if happiness == 1 then 
+            happTex:SetTexCoord(0.375, 0.5625, 0, 0.359375)
+            happTex:SetVertexColor(1, 0.2, 0.2, 0.9)
+        elseif happiness == 2 then 
+            happTex:SetTexCoord(0.1875, 0.375, 0, 0.359375)
+            happTex:SetVertexColor(1, 1, 0.2, 0.8)
+        elseif happiness == 3 then 
+            happTex:SetTexCoord(0, 0.1875, 0, 0.359375)
+            happTex:SetVertexColor(0.2, 1, 0.2, 0.4)
+        end
+    end
+
+    PetHappinessFrame:RegisterEvent("UNIT_HAPPINESS")
+    PetHappinessFrame:RegisterEvent("UNIT_PET")
+    PetHappinessFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+    PetHappinessFrame:SetScript("OnEvent", UpdatePetHappiness)
 end
 
 SLASH_UHCPMLEAVEPARTY1 = "/lp"
