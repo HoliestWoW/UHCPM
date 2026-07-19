@@ -137,11 +137,58 @@ function UHCPM.IsDarkSubZone(zoneName)
     return false
 end
 
+local petFrameCentered = false
+local petFrameTimer = nil
+
+local function BanishPetFrame()
+    if not petFrameCentered then return end
+    
+    if InCombatLockdown() then
+        PetFrame:SetAlpha(0)
+    else
+        PetFrame:ClearAllPoints()
+        PetFrame:SetPoint("TOPLEFT", UIParent, "TOPLEFT", -10000, 10000)
+        PetFrame:Hide()
+    end
+    
+    petFrameCentered = false
+    UHCPM.ShowAlert("Pet Frame Auto-Hidden.", 1.0, 0.2, 0.2)
+end
+
+SLASH_UHCPMPETMENU1 = "/pet"
+SlashCmdList["UHCPMPETMENU"] = function()
+    if InCombatLockdown() then
+        UHCPM.ShowAlert("Cannot move UI in combat!", 1.0, 0.2, 0.2)
+        return
+    end
+
+    if not petFrameCentered then
+        PetFrame:SetParent(UIParent)
+        PetFrame:Show()
+        PetFrame:SetAlpha(1)
+        
+        PetFrame:ClearAllPoints()
+        PetFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -50)
+        
+        petFrameCentered = true
+        UHCPM.ShowAlert("Pet Frame Centered.\nAuto-hiding in 10s.", 0.2, 1.0, 0.2)
+        
+        if petFrameTimer then petFrameTimer:Cancel() end
+        petFrameTimer = C_Timer.NewTimer(10, BanishPetFrame)
+    else
+        if petFrameTimer then petFrameTimer:Cancel() end
+        BanishPetFrame()
+    end
+end
+
 SLASH_UHCPMLEAVEPARTY1 = "/lp"
 SLASH_UHCPMLEAVEPARTY2 = "/leaveparty"
 SlashCmdList["UHCPMLEAVEPARTY"] = function()
-    LeaveParty()
-    print("You have left the party.")
+    if IsInGroup() then
+        LeaveParty()
+    else
+        UHCPM.ShowAlert("You aren't in a party.", 1.0, 0.2, 0.2)
+    end
 end
 
 -- Create a custom immersive alert frame for important events
