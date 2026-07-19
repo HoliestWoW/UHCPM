@@ -85,24 +85,81 @@ CombatTracker:SetScript("OnEvent", function(self, event, unit)
     end
 end)
 
-local TriageFrame = CreateFrame("Frame", "UHPMTriage", UIParent); TriageFrame:SetSize(200, 150); TriageFrame:SetPoint("LEFT", UIParent, "LEFT", 40, 0)
+local TriageFrame = CreateFrame("Frame", "UHPMTriage", UIParent)
+TriageFrame:SetSize(200, 150)
+TriageFrame:SetPoint("LEFT", UIParent, "LEFT", 40, 0)
 local triageLines = {}
-for i = 1, 4 do
-    local text = TriageFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal"); if i == 1 then text:SetPoint("TOPLEFT", TriageFrame, "TOPLEFT", 0, 0) else text:SetPoint("TOPLEFT", triageLines[i-1], "BOTTOMLEFT", 0, -12) end; text:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE"); text:SetJustifyH("LEFT"); text:SetAlpha(0); triageLines[i] = text
+
+for i = 1, 5 do
+    local text = TriageFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    text:SetFont("Fonts\\FRIZQT__.TTF", 16, "OUTLINE")
+    text:SetJustifyH("LEFT")
+    text:SetAlpha(0)
+    triageLines[i] = text
 end
-TriageFrame:RegisterEvent("GROUP_ROSTER_UPDATE"); TriageFrame:RegisterEvent("UNIT_HEALTH"); TriageFrame:RegisterEvent("UNIT_MAXHEALTH"); TriageFrame:RegisterEvent("UNIT_CONNECTION")
+
+TriageFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+TriageFrame:RegisterEvent("UNIT_HEALTH")
+TriageFrame:RegisterEvent("UNIT_MAXHEALTH")
+TriageFrame:RegisterEvent("UNIT_CONNECTION")
+TriageFrame:RegisterEvent("UNIT_PET")
+
 TriageFrame:SetScript("OnEvent", function(self, event, unit)
-    if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_CONNECTION" then if not (unit and string.match(unit, "^party%d$")) then return end end
-    for i = 1, 4 do
-        local partyUnit = "party"..i; local line = triageLines[i]
-        if UnitExists(partyUnit) then
-            local name = UnitName(partyUnit)
-            if not UnitIsConnected(partyUnit) then line:SetText(name .. " - OFFLINE"); line:SetTextColor(0.5, 0.5, 0.5); line:SetAlpha(1)
-            elseif UnitIsDeadOrGhost(partyUnit) then line:SetText(name .. " - DEAD"); line:SetTextColor(0.4, 0.4, 0.4); line:SetAlpha(1)
+    if event == "UNIT_HEALTH" or event == "UNIT_MAXHEALTH" or event == "UNIT_CONNECTION" then
+        if not (unit and (string.match(unit, "^party%d$") or unit == "pet")) then return end
+    end
+
+    local visibleCount = 0
+    local roster = {"party1", "party2", "party3", "party4", "pet"}
+
+    for _, checkUnit in ipairs(roster) do
+        local showLine = false
+        local r, g, b = 1, 1, 1
+        local lineText = ""
+
+        if UnitExists(checkUnit) then
+            local name = UnitName(checkUnit)
+            if checkUnit == "pet" then name = name .. " (Pet)" end -- Distinguish pet from players
+
+            if not UnitIsConnected(checkUnit) then
+                lineText = name .. " - OFFLINE"
+                r, g, b = 0.5, 0.5, 0.5
+                showLine = true
+            elseif UnitIsDeadOrGhost(checkUnit) then
+                lineText = name .. " - DEAD"
+                r, g, b = 0.4, 0.4, 0.4
+                showLine = true
             else
-                local hp = UnitHealth(partyUnit); local maxHp = UnitHealthMax(partyUnit)
-                if maxHp > 0 then local ratio = hp / maxHp; if ratio <= 0.50 then line:SetText(name .. " - " .. math.floor(ratio * 100) .. "%"); line:SetTextColor(ratio <= 0.20 and 1 or 0.85, ratio <= 0.20 and 0 or 0.1, 0.1); line:SetAlpha(1) else line:SetAlpha(0) end end
+                local hp = UnitHealth(checkUnit)
+                local maxHp = UnitHealthMax(checkUnit)
+                if maxHp > 0 then
+                    local ratio = hp / maxHp
+                    if ratio <= 0.50 then
+                        lineText = name .. " - " .. math.floor(ratio * 100) .. "%"
+                        if ratio <= 0.20 then r, g, b = 1, 0, 0 else r, g, b = 0.85, 0.1, 0.1 end
+                        showLine = true
+                    end
+                end
             end
-        else line:SetAlpha(0) end
+        end
+
+        if showLine then
+            visibleCount = visibleCount + 1
+            local line = triageLines[visibleCount]
+            line:SetText(lineText)
+            line:SetTextColor(r, g, b)
+            line:SetAlpha(1)
+
+            line:ClearAllPoints()
+            if visibleCount == 1 then
+                line:SetPoint("TOPLEFT", TriageFrame, "TOPLEFT", 0, 0)
+            else
+                line:SetPoint("TOPLEFT", triageLines[visibleCount - 1], "BOTTOMLEFT", 0, -12)
+            end
+        end
+    end
+
+    for i = visibleCount + 1, 5 do
+        triageLines[i]:SetAlpha(0)
     end
 end)

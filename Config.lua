@@ -21,6 +21,9 @@ end
 
 local function UpdateChatVisibility(isHidden)
     local targetAlpha = isHidden and 0 or 1
+    
+    SetCVar("socialChat", isHidden and "0" or "1")
+    
     for i = 1, NUM_CHAT_WINDOWS do 
         local chat = _G["ChatFrame"..i]
         local tab = _G["ChatFrame"..i.."Tab"]
@@ -29,7 +32,6 @@ local function UpdateChatVisibility(isHidden)
             chat:EnableMouse(not isHidden)
             chat:SetAlpha(targetAlpha)
             
-            -- Prevent the game from forcing the chat window alpha back up
             if not chat.UHCPMHooked then
                 hooksecurefunc(chat, "SetAlpha", function(self, alpha)
                     if UHCPM_Config and UHCPM_Config.hideChat and alpha > 0 then
@@ -44,7 +46,6 @@ local function UpdateChatVisibility(isHidden)
             tab:EnableMouse(not isHidden)
             tab:SetAlpha(targetAlpha)
             
-            -- Prevent the game from forcing the tab alpha back up, without breaking docking
             if not tab.UHCPMHooked then
                 hooksecurefunc(tab, "SetAlpha", function(self, alpha)
                     if UHCPM_Config and UHCPM_Config.hideChat and alpha > 0 then
@@ -59,8 +60,6 @@ local function UpdateChatVisibility(isHidden)
     if QuickJoinToastButton then QuickJoinToastButton:SetAlpha(targetAlpha); QuickJoinToastButton:EnableMouse(not isHidden) end
     if ChatFrameMenuButton then ChatFrameMenuButton:SetAlpha(targetAlpha); ChatFrameMenuButton:EnableMouse(not isHidden) end
     if ChatFrameChannelButton then ChatFrameChannelButton:SetAlpha(targetAlpha); ChatFrameChannelButton:EnableMouse(not isHidden) end
-
-    if isHidden then SetCVar("chatBubbles", "1") end
 end
 
 local function UpdateErrorMessages(isHidden)

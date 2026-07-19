@@ -220,6 +220,9 @@ if playerClass == "HUNTER" then
     local PetHappinessFrame = CreateFrame("Frame", "UHCMPetHappiness", UIParent)
     PetHappinessFrame:SetSize(24, 24)
     PetHappinessFrame:SetPoint("CENTER", UIParent, "CENTER", 0, -100) 
+    
+    PetHappinessFrame:SetFrameStrata("HIGH") 
+    PetHappinessFrame:SetClampedToScreen(true)
 
     local happTex = PetHappinessFrame:CreateTexture(nil, "BACKGROUND")
     happTex:SetAllPoints()
@@ -244,13 +247,15 @@ if playerClass == "HUNTER" then
     local ttDesc = PetTooltip:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     ttDesc:SetPoint("TOPLEFT", ttTitle, "BOTTOMLEFT", 0, -4)
     ttDesc:SetJustifyH("LEFT")
-    ttDesc:SetText("Indicates your pet's current mood.\nType /peticon to lock/unlock.")
+    ttDesc:SetText("Indicates your pet's current mood.\nHold Shift and drag to move this icon.")
 
-    local isIconLocked = true
     PetHappinessFrame:SetMovable(true)
     PetHappinessFrame:EnableMouse(true)
     PetHappinessFrame:RegisterForDrag("LeftButton")
 
+    PetHappinessFrame:SetScript("OnDragStart", function(self)
+        if IsShiftKeyDown() then self:StartMoving() end
+    end)
     PetHappinessFrame:SetScript("OnDragStop", function(self)
         self:StopMovingOrSizing()
         if UHCPM_Config then
@@ -262,20 +267,6 @@ if playerClass == "HUNTER" then
     PetHappinessFrame:SetScript("OnEnter", function() PetTooltip:Show() end)
     PetHappinessFrame:SetScript("OnLeave", function() PetTooltip:Hide() end)
 
-    SLASH_UHCPMPETICON1 = "/peticon"
-    SlashCmdList["UHCPMPETICON"] = function()
-        isIconLocked = not isIconLocked
-        if isIconLocked then
-            UHCPM.ShowAlert("Pet Icon Locked.", 1.0, 0.8, 0)
-            if not UnitExists("pet") then PetHappinessFrame:Hide() end
-        else
-            UHCPM.ShowAlert("Pet Icon Unlocked.\nDrag to move.", 0.2, 1.0, 0.2)
-            PetHappinessFrame:Show()
-            happTex:SetTexCoord(0, 0.1875, 0, 0.359375) 
-            happTex:SetVertexColor(1, 1, 1, 0.8) 
-        end
-    end
-
     local function UpdatePetHappiness(self, event)
         if event == "PLAYER_ENTERING_WORLD" then
             if UHCPM_Config and UHCPM_Config.petIconX and UHCPM_Config.petIconY then
@@ -285,7 +276,7 @@ if playerClass == "HUNTER" then
         end
 
         if not UnitExists("pet") then 
-            if isIconLocked then PetHappinessFrame:Hide() end
+            PetHappinessFrame:Hide()
             return
         end
         
